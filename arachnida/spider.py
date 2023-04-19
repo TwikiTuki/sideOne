@@ -53,35 +53,36 @@ class Parser(HTMLParser):
         self.visited = visited
         self.depth = depth if depth != None else flags['depth']
         self.domain = get_domain(flags['url'])
-
+        self.pending
     def handle_starttag(self, tag ,attrs):
         # Handle the links tag
-        print(f'>>> {tag}, {attrs}')
+#        print(f'>>> {tag}, {attrs}')
         if (tag == 'a'):
-            print(f'\tfount tag {tag}: {attrs}')
+            ln = len(self.visited)
             href = [attr for attr in attrs if attr[0] == 'href']
             if not len(href):
                 return
             link = href[0][1]
             shorted = clean_link(link)
             domain = get_domain(shorted)
-            print(f'\tdomain: {domain}, self.domain: {self.domain}')
-            if (get_domain(shorted) == self.domain and
-                shorted not in self.visited and
-                self.depth != 0):
+            print(f"The link is {link}")
+            if (get_domain(shorted) == self.domain and shorted not in self.visited and self.depth != 0):
+                    print(f"The short is {shorted}")
                     self.visited[shorted] = {'short': shorted, 'original': link} 
-
+                    print("\t\tI like this link")
                     assert shorted in self.visited, "wooops didnt add the link"
-                    ln = len(self.visited)
-                    log = open(log_file, 'w')
+                    log = open(log_file, 'a')
                     log.write(link)
                     log.write('\n')
                     log.close()
-                    print(f'n: {ln} \nlink: {link}] \t{self.visited} \n')
 
-                    Parser(flags, depth = self.depth - 1, visited = self.visited)
+                    Parser(self.flags, depth = self.depth - 1, visited = self.visited)
                     resp = get_url(shorted)
-                    parser.feed(resp['text'])
+                    try:
+                        parser.feed(resp['text'])
+                    except Exception as e:
+                        print(f"THE ERROR LINK IS: {link}")
+
             else:
                 print("\t\tdont like this link")
 
@@ -112,11 +113,13 @@ def get_domain(link):
     return link
 
 def get_url(url):
+    print(f'get_url inital link: {url}')
     assert get_domain(url) == "https:42barcelona.com", 'The domain is not valid!!!!'
     # Asser url is valid for get_url
     url = clean_link(url)[len('https:'):]
     url = 'https://' + url
     res_dct = {}
+    print(f'get_url link: {url}')
     resp = requests.get(url)
     res_dct['content'] = resp.content 
     res_dct['url'] = url
@@ -126,6 +129,7 @@ def get_url(url):
 
 def scrap_url(url, visited):
 
+    raise "Shouldnt be here"
     resp = get_url("https://www.42barcelona.com/")
     parser = Parser()
     parser.feed(resp['text'])
@@ -135,7 +139,8 @@ if (__name__ == '__main__'):
 
     flags = get_flags(sys.argv)
     resp = get_url("https://www.42barcelona.com/")
-    print("flags", flags)
+    resp = get_url("https://www.42barcelona.com/es/actualidad/actitud-42-dani-lopez/")
+    print("flags:", flags)
     parser = Parser(flags)
 #   parser.feed(resp['content'].decode('utf-8'))
     print('------------sdaf-----------')
