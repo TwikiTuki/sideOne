@@ -28,7 +28,7 @@ def get_flags(args):
     if (len(args) < 2):
         print(usage)
 
-    flags={'url': None ,'recurse': False ,'depth': -1 ,'path': None}
+    flags={'url': None ,'recurse': False ,'depth': -1 ,'path': './images', 'verbose': False}
     flags['url'] = args[-1]
     i = 1
     max_i = len(args) - 1
@@ -47,7 +47,7 @@ def get_flags(args):
             flags['path'] = args[i + 1]
             path = flags['path']
             if (not os.path.isdir(flags['path'])):
-                raise FileNotFoundError(f'No such file or direcotry: {path}')
+                raise FileNotFoundError(f'Spider: No such file or direcotry: {path}')
             i += 2
         elif (flag == 'l' ):
             flags['depth'] = args[i + 1]
@@ -55,6 +55,9 @@ def get_flags(args):
                 raise TypeError("depth (-l) must be a non negative integer")
             flags['depth'] = int(flags['depth'])
             i += 2
+        elif (flag == 'v'):
+            flags['verbose'] = True
+            i += 1
         else:
             print(usage)
             raise ValueError(f'flag "{flag}" at index {i} is not allowed \n {usage}')
@@ -65,16 +68,17 @@ def get_flags(args):
 log_file = 'log_file.txt'
 
 def hard_domain_check(url, check_domain=True):
-    print(f'Hard checking {url}')
     if (get_domain(url) != "https:42barcelona.com"):
-        raise BaseException("Getting out of 42Barcelona", url)
+        raise BaseException(f"Getting out of 42Barcelona", url)
 
 def clean_link(link, check_domain=True):
 
-    if link == None:
-        raise Exception("the link you are trying to celan is None")
+    if (not link):
+        return ""
     link = link.replace('https://', 'https:', 1)
     link = link.replace('https:www.', 'https:', 1)
+    link = link.replace('http://', 'http:', 1)
+    link = link.replace('http:www.', 'http:', 1)
     if (link[-1] == '/'):
         link = link[:-1]
 #   if (check_domain):
@@ -94,13 +98,26 @@ def get_domain(link):
         link=link[:link.find(':', scheme_end)]
     return link
 
+def valid_link(link):
+    if (not link):
+        return (False)
+    link = clean_link(link)
+    if (link.startswith('https:')):
+        domain_start = len('https:')
+    elif (link.startswith('http:')):
+        domain_start = len('http:')
+    else:
+        return (False)
+    return len(link) > 0
+
 def get_url(url):
     print(url, get_domain(url))
     hard_domain_check(url)
     # Asser url is valid for get_url
     url = clean_link(url)[len('https:'):]
-    url = 'https://' + url
+    url = 'https://' + url 
     res_dct = {}
+    print(f'Getting: {url}')
     resp = requests.get(url)
     res_dct['content'] = resp.content 
     res_dct['url'] = url
@@ -108,90 +125,102 @@ def get_url(url):
     res_dct['encoding'] = resp.encoding
     res_dct['status_code'] = resp.status_code
     return res_dct
-
+    
 def scrap_url(url, visited):
     raise "Shouldnt be here"
     resp = get_url("https://www.42barcelona.com/")
     parser = Parser()
     parser.feed(resp['text'])
 
+def generate_interesting_list(new_list, old_list, domain, verbose = True):
+    print("FINDING NEW LINKS")
+    result = []
+    for link in new_list:
+        link = clean_link(link)
+        if (verbose): print("New possible: ", end="")
+        if (not valid_link(link)):
+            if (verbose): print(f'\t{"ommited because the link is not valid":45}', colors.red, link, colors.ENDC)
+            continue
+        elif (get_domain(link) != domain):
+            if (verbose): print(f'\t{"ommited because the domain is not valid":45}', colors.red, link, colors.ENDC)
+            continue
+        elif (link in old_list or link in result):
+            if (verbose): print(f'\t{"ommited because already found":45}', colors.orange, link, colors.ENDC)
+            continue
+        else:
+            if (verbose): print(f'\t{"adding":45}', colors.green, link, colors.ENDC)
+            assert get_domain(link) == domain, 'The domain is not valid!!!!'
+            result.append(link)
+    result = set(result)
+    
+    return (result)
 if (__name__ == '__main__'):
     urls = {}
     flags = get_flags(sys.argv)
     domain = get_domain(flags['url'])
-    resp = get_url("https://www.42barcelona.com/")
-    resp = get_url("https://www.42barcelona.com/es/actualidad/actitud-42-dani-lopez/")
+    #resp = get_url("https://www.42barcelona.com/")
+    #resp = get_url("https://www.42barcelona.com/es/actualidad/actitud-42-dani-lopez/")
+    if (not valid_link(flags['url'])):
+            print("No valid link")
+            exit()
     resp = get_url(flags['url'])
-    soup = BeautifulSoup(resp['text'])
-    links = soup.find_all("a")
-    links = [link.attrs['href'] for link in links if link.has_attr('href')]
-    links_aux = []
-    '''
-    for link in links:
-        if (get_domain(link) != domain):
-            continue
-        link = clean_link(link)
-        else:
-            links_aux.append(link)
-    links = links_aux
-    '''
 
-    pending_links = []
+    pending_links = [(flags['url'], flags['depth'])]
     found_links = []
-    for link in links:
-        print("\ttesting: ", link, end='')
-        if (get_domain(link) != domain):
-            print('\tinvalid domain')
-            continue
-        link = clean_link(link)
-        if (link in found_links):
-            print('\talready added')
-            continue
-        else:
-            print('\tadded')
-            pending_links.append(link)
-            found_links.append(link)
-    #        hard_domain_check(link)
-    with open('__log_file__.txt', 'w') as f:
-        for link in found_links:
-            f.write(link)
-            f.write('\n')
-
-        '''
-        if (get_domain(link) == domain and link not in found_links):
-            pending_links.append(link)
-            found_links.append(link)
-            print('added', link)
-            hard_domain_check(link)
-        '''
-    print("MADE FIRST LOAD\n")
+    found_links = [link[0] for link in pending_links]
+    found_images = []
     while (pending_links):
-        print("PARSING ANOTHER LINK")
-        link = pending_links.pop()
+        link, depth = pending_links.pop()
+        print(f"PARSING ANOTHER LINK (dep: {depth}, {link})")
         hard_domain_check(link)
         resp = get_url(link)
         if (resp['status_code'] != 200):
+            status_code = resp['status_code']
+            print(colors.red, f'ERROR: status_code = {status_code} {link}', colors.ENDC)
             continue
         soup = BeautifulSoup(resp['text'])
-        links = soup.find_all("a")
-        links = [link.attrs['href'] for link in links if link.has_attr('href')]
-        print("FINDING NEW LINKS")
-        for link in links:
-            print("New possible link:", end="")
-            if (get_domain(link) != domain):
-                print(f'\t{"ommited because the domain is not valid":45}', colors.red, link, colors.ENDC)
-                continue
-            elif (link in found_links):
-                print(f'\t{"ommited because already found":45}', colors.orange, link, colors.ENDC)
-                continue
-            else:
-                print(f'\t{"addin":45}', colors.green, link, colors.ENDC)
-                print('Domains: ', get_domain(link), domain)
-                print("willl surviveeeeee")
-                assert get_domain(link) == domain, 'The domain is not valid!!!!'
-                print("stiiiillll aliveeeee")
-                pending_links.append(link) 
-                found_links.append(link)
-                last_added = found_links[-1]
-                print(f'\tlast found: {last_added}, added: {link}')
+        # Add the links from the page to the list of pending links
+        if (depth):
+            links = soup.find_all("a")
+            links = [link.attrs['href'] for link in links if link.has_attr('href')]
+            links = generate_interesting_list(links, found_links, domain, verbose = flags['verbose'])
+            found_links += links
+            pending_links += [(l, depth - 1) for l in links]
+        # Add images from the page to the list of images to get
+
+        imgs = soup.find_all("img")
+        #print('!!!!!images: ', imgs)
+        imgs  = [img.attrs['src'] for img in imgs if img.has_attr('src')]
+        imgs = generate_interesting_list(imgs, found_images, domain, verbose = flags['verbose'])
+        found_images += imgs
+
+    print("CHECKED ALL THE WEBPAGE")
+    for i, img in enumerate(found_images):
+        resp = get_url(img)
+        if (resp['status_code'] != 200):
+            continue;
+        #TO DO get shur we have an image
+        name = img.split('?')[0]
+        name = img.split('/')[-1]
+        name = f'image_{i}__{name}'
+        path = flags['path']
+        path = f'./{path}/'
+        path = path + name
+        print(f'{path}: {img}')
+        image_file = open(path, 'wb') 
+        image_file.write(resp['content'])
+        image_file.close()
+
+
+
+
+
+
+
+
+#TODO
+#Falta gestionar una flag
+#Falta comprobar el tipus dels links i si son imarges afegirlos
+#Falta gestionar fitxers locals
+#Falta probar amb recursivitat
 
