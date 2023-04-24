@@ -22,7 +22,6 @@ class colors:
     lightcyan = '\033[96m'
     ENDC = '\033[0m'
 
-
 def get_flags(args):
     usage = 'usage: ./spider [-r -l -p -S] URL'
     if (len(args) < 2):
@@ -68,6 +67,7 @@ def get_flags(args):
 log_file = 'log_file.txt'
 
 def hard_domain_check(url, check_domain=True):
+    return 
     if (get_domain(url) != "https:42barcelona.com"):
         raise BaseException(f"Getting out of 42Barcelona", url)
 
@@ -79,6 +79,7 @@ def clean_link(link, check_domain=True):
     link = link.replace('https:www.', 'https:', 1)
     link = link.replace('http://', 'http:', 1)
     link = link.replace('http:www.', 'http:', 1)
+    link = link.replace('file://', 'file:', 1)
     if (link[-1] == '/'):
         link = link[:-1]
 #   if (check_domain):
@@ -89,6 +90,8 @@ def clean_link(link, check_domain=True):
 def get_domain(link):
     #print(f'Getting domain from: {link}')
     link = clean_link(link, check_domain=False)
+    if (link.startswith('file:')):
+        return ('localhost')
     # cut subdirectory
     scheme_end = len('https:') + 1
     if ('/' in link):
@@ -106,24 +109,44 @@ def valid_link(link):
         domain_start = len('https:')
     elif (link.startswith('http:')):
         domain_start = len('http:')
+    elif (link.startswith('file:')):
+        domain_start = len('file:')
     else:
         return (False)
-    return len(link) > 0
+    return len(link) - domain_start > 0
 
 def get_url(url):
-    print(url, get_domain(url))
-    hard_domain_check(url)
-    # Asser url is valid for get_url
-    url = clean_link(url)[len('https:'):]
-    url = 'https://' + url 
     res_dct = {}
-    print(f'Getting: {url}')
-    resp = requests.get(url)
-    res_dct['content'] = resp.content 
-    res_dct['url'] = url
-    res_dct['text'] = resp.text
-    res_dct['encoding'] = resp.encoding
-    res_dct['status_code'] = resp.status_code
+    if (get_domain(url) == 'localhost'):
+        res_dct['status_code'] = 200
+        path = clean_link(url)[len('file:'):]
+        print(f"opening local file {path}")
+        try:
+            with open(path, "r") as f:
+                res_dct['text'] = f.read()
+            res_dct['url'] = url
+        except Exception as e :
+            print(f"unable to open {path}")
+            res_dct['status_code'] = '404' if os.path.exists(url) else '403'
+        res_dct['content'] = None
+        res_dct['encoding'] = None
+    else:
+        print(url, get_domain(url))
+        hard_domain_check(url)
+        # Asser url is valid for get_url
+        url = clean_link(url)[len('https:'):]
+        url = 'https://' + url 
+        print(f'Getting: {url}')
+        try: 
+            resp = requests.get(url)
+        except Exception:
+            res_dct['status_code'] = 42 #something whent wrong
+        else:
+            res_dct['content'] = resp.content 
+            res_dct['url'] = url
+            res_dct['text'] = resp.text
+            res_dct['encoding'] = resp.encoding
+            res_dct['status_code'] = resp.status_code
     return res_dct
     
 def scrap_url(url, visited):
@@ -137,6 +160,9 @@ def generate_interesting_list(new_list, old_list, domain, verbose = True):
     result = []
     for link in new_list:
         link = clean_link(link)
+        if (domain == 'localhost' and not link.startswith('file:')):
+            link = '/' + link if link[0] != '/' else link 
+            link = 'file:' + link
         if (verbose): print("New possible: ", end="")
         if (not valid_link(link)):
             if (verbose): print(f'\t{"ommited because the link is not valid":45}', colors.red, link, colors.ENDC)
@@ -158,13 +184,9 @@ if (__name__ == '__main__'):
     urls = {}
     flags = get_flags(sys.argv)
     domain = get_domain(flags['url'])
-    #resp = get_url("https://www.42barcelona.com/")
-    #resp = get_url("https://www.42barcelona.com/es/actualidad/actitud-42-dani-lopez/")
     if (not valid_link(flags['url'])):
-            print("No valid link")
+            print(f"No valid link: '{flags['url']}'")
             exit()
-    resp = get_url(flags['url'])
-
     pending_links = [(flags['url'], flags['depth'])]
     found_links = []
     found_links = [link[0] for link in pending_links]
