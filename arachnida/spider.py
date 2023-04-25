@@ -27,7 +27,7 @@ def get_flags(args):
     if (len(args) < 2):
         print(usage)
 
-    flags={'url': None ,'recurse': False ,'depth': -1 ,'path': './images', 'verbose': False}
+    flags={'url': None ,'recurse': False ,'depth': -1 ,'path': './data', 'verbose': False}
     flags['url'] = args[-1]
     i = 1
     max_i = len(args) - 1
@@ -45,8 +45,6 @@ def get_flags(args):
         elif (flag == 'p'):
             flags['path'] = args[i + 1]
             path = flags['path']
-            if (not os.path.isdir(flags['path'])):
-                raise FileNotFoundError(f'Spider: No such file or direcotry: {path}')
             i += 2
         elif (flag == 'l' ):
             flags['depth'] = args[i + 1]
@@ -62,6 +60,11 @@ def get_flags(args):
             raise ValueError(f'flag "{flag}" at index {i} is not allowed \n {usage}')
         if (not flags['recurse']):
             flags['depth'] = 0
+    if (not os.path.exists(flags['path'])):
+        print("made dir")
+        os.mkdir(flags['path'])
+    else:
+        print("didnt make dir", os.path.exists(flags['path']), flags['path'])
     return (flags)
 
 log_file = 'log_file.txt'
@@ -80,11 +83,8 @@ def clean_link(link, check_domain=True):
     link = link.replace('http://', 'http:', 1)
     link = link.replace('http:www.', 'http:', 1)
     link = link.replace('file://', 'file:', 1)
-    if (link[-1] == '/'):
+    while (link[-1] == '/'):
         link = link[:-1]
-#   if (check_domain):
-#        print("checking domain in clean_link (shouldnt if comming from get_domain)")
-#    hard_domain_check(link, check_domain=check_domain)
     return link
 
 def get_domain(link):
@@ -116,6 +116,7 @@ def valid_link(link):
     return len(link) - domain_start > 0
 
 def get_url(url):
+<<<<<<< HEAD
     res_dct = {}
     if (get_domain(url) == 'localhost'):
         res_dct['status_code'] = 200
@@ -149,13 +150,35 @@ def get_url(url):
             res_dct['status_code'] = resp.status_code
     return res_dct
     
-def scrap_url(url, visited):
-    raise "Shouldnt be here"
-    resp = get_url("https://www.42barcelona.com/")
-    parser = Parser()
-    parser.feed(resp['text'])
+def solve_host(model, incomplete):
+    '''
+        !!!! it expects a cleaned url returned by the function clean_link()
+        It tries to figure out whteer the incomplete url has a host or not. If it doesnt it  tries to use the model's host
+    '''
+    if (not model or not incomplete):
+        return (incomplete)
+    # Check whteter it should have domain, if it should return the original
+    if (incomplete.startswith(('file', 'http', 'https'))):
+        return (incomplete)
+    if (incomplete[0] == '/'):
+        result = model.split('?')[0][:-1]
+        result = result.split('/')[0]
+        result += incomplete
+    elif (incomplete[0:2] == './'):
+        result = model.split('?')[0]
+        if (result[-1] == '/'):
+            result = result[:-1]
+        print(f"  preresult: {result}")
+        result += incomplete[1:]
+    else: 
+        result = model.split('?')[0]
+        if (result[-1] == '/'):
+            result = result[:-1]
+        print(f"  preresult: {result}")
+        result += '/' + incomplete
+    return (result)
 
-def generate_interesting_list(new_list, old_list, domain, verbose = True):
+def generate_interesting_list(new_list, old_list, old_link, domain, verbose = True):
     print("FINDING NEW LINKS")
     result = []
     for link in new_list:
@@ -163,11 +186,12 @@ def generate_interesting_list(new_list, old_list, domain, verbose = True):
         if (domain == 'localhost' and not link.startswith('file:')):
             link = '/' + link if link[0] != '/' else link 
             link = 'file:' + link
+        link = solve_host(old_link, link)
         if (verbose): print("New possible: ", end="")
         if (not valid_link(link)):
             if (verbose): print(f'\t{"ommited because the link is not valid":45}', colors.red, link, colors.ENDC)
             continue
-        elif (get_domain(link) != domain):
+        elif (domain and get_domain(link) != domain):
             if (verbose): print(f'\t{"ommited because the domain is not valid":45}', colors.red, link, colors.ENDC)
             continue
         elif (link in old_list or link in result):
@@ -175,14 +199,17 @@ def generate_interesting_list(new_list, old_list, domain, verbose = True):
             continue
         else:
             if (verbose): print(f'\t{"adding":45}', colors.green, link, colors.ENDC)
-            assert get_domain(link) == domain, 'The domain is not valid!!!!'
+            assert not domain or get_domain(link) == domain, 'The domain is not valid!!!!'
             result.append(link)
     result = set(result)
-    
     return (result)
+    
 if (__name__ == '__main__'):
+    print("HELLOOW SPIDY") 
     urls = {}
+    print("Getting flags")
     flags = get_flags(sys.argv)
+    print("Getting domain")
     domain = get_domain(flags['url'])
     if (not valid_link(flags['url'])):
             print(f"No valid link: '{flags['url']}'")
@@ -194,7 +221,6 @@ if (__name__ == '__main__'):
     while (pending_links):
         link, depth = pending_links.pop()
         print(f"PARSING ANOTHER LINK (dep: {depth}, {link})")
-        hard_domain_check(link)
         resp = get_url(link)
         if (resp['status_code'] != 200):
             status_code = resp['status_code']
@@ -205,15 +231,14 @@ if (__name__ == '__main__'):
         if (depth):
             links = soup.find_all("a")
             links = [link.attrs['href'] for link in links if link.has_attr('href')]
-            links = generate_interesting_list(links, found_links, domain, verbose = flags['verbose'])
+            links = generate_interesting_list(links, found_links, link, domain, verbose = flags['verbose'])
             found_links += links
             pending_links += [(l, depth - 1) for l in links]
         # Add images from the page to the list of images to get
-
         imgs = soup.find_all("img")
         #print('!!!!!images: ', imgs)
         imgs  = [img.attrs['src'] for img in imgs if img.has_attr('src')]
-        imgs = generate_interesting_list(imgs, found_images, domain, verbose = flags['verbose'])
+        imgs = generate_interesting_list(imgs, found_images, link, None, verbose = flags['verbose'])
         found_images += imgs
 
     print("CHECKED ALL THE WEBPAGE")
@@ -233,16 +258,9 @@ if (__name__ == '__main__'):
         image_file.write(resp['content'])
         image_file.close()
 
-
-
-
-
-
-
-
 #TODO
 #Falta gestionar una flag
-#Falta comprobar el tipus dels links i si son imarges afegirlos
+#Falta gestinoar urls relatives
 #Falta gestionar fitxers locals
-#Falta probar amb recursivitat
-
+#No se si crea l'arixu on ficar les imatges
+#Testejar amb altres webs
