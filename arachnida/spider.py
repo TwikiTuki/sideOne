@@ -116,20 +116,24 @@ def valid_link(link):
     return len(link) - domain_start > 0
 
 def get_url(url):
-<<<<<<< HEAD
     res_dct = {}
     if (get_domain(url) == 'localhost'):
         res_dct['status_code'] = 200
         path = clean_link(url)[len('file:'):]
         print(f"opening local file {path}")
         try:
+            with open(path, "br") as f:
+                res_dct['content'] = f.read()
             with open(path, "r") as f:
                 res_dct['text'] = f.read()
             res_dct['url'] = url
         except Exception as e :
-            print(f"unable to open {path}")
-            res_dct['status_code'] = '404' if os.path.exists(url) else '403'
-        res_dct['content'] = None
+            if (type(e) == UnicodeDecodeError):
+                res_dct['text'] = None
+            else:
+                print(f"unable to open {path}")
+                res_dct['status_code'] = '404' if os.path.exists(url) else '403'
+                raise e
         res_dct['encoding'] = None
     else:
         print(url, get_domain(url))
@@ -155,13 +159,18 @@ def solve_host(model, incomplete):
         !!!! it expects a cleaned url returned by the function clean_link()
         It tries to figure out whteer the incomplete url has a host or not. If it doesnt it  tries to use the model's host
     '''
+    print(f"sovling_host: model = {model}, incomplete = {incomplete}")
     if (not model or not incomplete):
         return (incomplete)
-    # Check whteter it should have domain, if it should return the original
+    model = clean_link(model)
+    model = '/'.join(model.split('/')[:-1])
+    # Check wheter it should have domain, if it should return the original
     if (incomplete.startswith(('file', 'http', 'https'))):
         return (incomplete)
     if (incomplete[0] == '/'):
-        result = model.split('?')[0][:-1]
+        result = model.split('?')[0]
+        if (result[-1] == '/'):
+            result = result[:-1]
         result = result.split('/')[0]
         result += incomplete
     elif (incomplete[0:2] == './'):
@@ -183,10 +192,9 @@ def generate_interesting_list(new_list, old_list, old_link, domain, verbose = Tr
     result = []
     for link in new_list:
         link = clean_link(link)
-        if (domain == 'localhost' and not link.startswith('file:')):
-            link = '/' + link if link[0] != '/' else link 
-            link = 'file:' + link
+        print(f"generating interesting {link}")
         link = solve_host(old_link, link)
+        print(f"after sort host {link}")
         if (verbose): print("New possible: ", end="")
         if (not valid_link(link)):
             if (verbose): print(f'\t{"ommited because the link is not valid":45}', colors.red, link, colors.ENDC)
@@ -203,6 +211,17 @@ def generate_interesting_list(new_list, old_list, old_link, domain, verbose = Tr
             result.append(link)
     result = set(result)
     return (result)
+
+def initial_local_url_check(url):
+    url = clean_link(url)
+    if (not url or url.startswith(('http', 'https'))):
+        return (url)
+    if (url.startswith('file:')):
+        url = url[len('file:'):]
+    if (url[0] != '/' and url[0:2] != './'):
+        url = './' + url
+    url = 'file:' + url
+    return (url)
     
 if (__name__ == '__main__'):
     print("HELLOOW SPIDY") 
@@ -211,9 +230,12 @@ if (__name__ == '__main__'):
     flags = get_flags(sys.argv)
     print("Getting domain")
     domain = get_domain(flags['url'])
+    flags['url'] = initial_local_url_check(flags['url'])
+    print("The starting link will be:", flags['url'])
     if (not valid_link(flags['url'])):
-            print(f"No valid link: '{flags['url']}'")
-            exit()
+        print(f"No valid link: '{flags['url']}'")
+        exit()
+    print("The starting link will be:", flags['url'])
     pending_links = [(flags['url'], flags['depth'])]
     found_links = []
     found_links = [link[0] for link in pending_links]
@@ -262,5 +284,5 @@ if (__name__ == '__main__'):
 #Falta gestionar una flag
 #Falta gestinoar urls relatives
 #Falta gestionar fitxers locals
-#No se si crea l'arixu on ficar les imatges
+#No se si crea l'arixu on ficar les imatgeo
 #Testejar amb altres webs
