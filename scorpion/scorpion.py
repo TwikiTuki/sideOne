@@ -28,6 +28,3 @@ class Scorpion():
 
 if (__name__ == '__main__'):
     scorpion = Scorpion(sys.argv[1:])
-
-
-        
