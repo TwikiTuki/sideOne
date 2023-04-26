@@ -91,7 +91,7 @@ def get_domain(link):
     #print(f'Getting domain from: {link}')
     link = clean_link(link, check_domain=False)
     if (link.startswith('file:')):
-        return ('localhost')
+        return ('filetype')
     # cut subdirectory
     scheme_end = len('https:') + 1
     if ('/' in link):
@@ -117,7 +117,7 @@ def valid_link(link):
 
 def get_url(url):
     res_dct = {}
-    if (get_domain(url) == 'localhost'):
+    if (get_domain(url) == 'filetype'):
         res_dct['status_code'] = 200
         path = clean_link(url)[len('file:'):]
         print(f"opening local file {path}")
@@ -133,7 +133,6 @@ def get_url(url):
             else:
                 print(f"unable to open {path}")
                 res_dct['status_code'] = '404' if os.path.exists(url) else '403'
-                raise e
         res_dct['encoding'] = None
     else:
         print(url, get_domain(url))
@@ -229,8 +228,8 @@ if (__name__ == '__main__'):
     print("Getting flags")
     flags = get_flags(sys.argv)
     print("Getting domain")
-    domain = get_domain(flags['url'])
     flags['url'] = initial_local_url_check(flags['url'])
+    domain = get_domain(flags['url'])
     print("The starting link will be:", flags['url'])
     if (not valid_link(flags['url'])):
         print(f"No valid link: '{flags['url']}'")
