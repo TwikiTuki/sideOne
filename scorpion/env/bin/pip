@@ -1,4 +1,4 @@
-#!/home/twikituki/Documents/cyber/scorpion/env/bin/python3
+#!/Users/jrenau-v/Documents/cyber/arachnida/env/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
