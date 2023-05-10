@@ -23,7 +23,15 @@ class colors:
     ENDC = '\033[0m'
 
 def get_flags(args):
-    usage = 'usage: ./spider [-r -l -p -S] URL'
+    usage = '''
+    usage: ./spider [-r -l -p -v] URL
+    URL: indicates the intital url for scraping.
+    -r: Indicates that any link found in URL should be checked recursively.
+        By default it will finish when it gets all the webpage links.
+    -l: Sets a maximum depth to the -r flag.
+    -p: Indicates the path to save the images.
+    -v: Prints more information when scraping.
+    '''
     if (len(args) < 2):
         print(usage)
 
