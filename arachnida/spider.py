@@ -27,7 +27,7 @@ def get_flags(args):
     if (len(args) < 2):
         print(usage)
 
-    flags={'url': None ,'recurse': False ,'depth': -1 ,'path': './data', 'verbose': False}
+    flags={'url': None ,'recurse': False ,'depth': 0 ,'path': './data', 'verbose': False}
     flags['url'] = args[-1]
     i = 1
     max_i = len(args) - 1
@@ -41,6 +41,7 @@ def get_flags(args):
         # Now get the flags
         if (flag == 'r'):
             flags['recurse'] = True  
+            flags['depth'] = -1  
             i += 1
         elif (flag == 'p'):
             flags['path'] = args[i + 1]
@@ -84,7 +85,7 @@ def clean_link(link, check_domain=True):
     link = link.replace('http://', 'http:', 1)
     link = link.replace('http:www.', 'http:', 1)
     link = link.replace('file://', 'file:', 1)
-    while (link[-1] == '/'):
+    while (link.endswith(('/', '#'))):
         link = link[:-1]
     return link
 
@@ -198,6 +199,7 @@ def generate_interesting_list(new_list, old_list, old_link, domain, verbose = Tr
     print("FINDING NEW LINKS/IMAGES")
     result = []
     for link in new_list:
+        print(f"NEW LINK TO TEST {link}")
         link = clean_link(link)
         link = solve_host(old_link, link)
         if (verbose): print("  New possible: ", end="")
@@ -233,6 +235,7 @@ if (__name__ == '__main__'):
     urls = {}
     flags = get_flags(sys.argv)
     flags['url'] = initial_local_url_check(flags['url'])
+    print(f"flags: {flags}")
     domain = get_domain(flags['url'])
     #print("The starting link will be:", flags['url'])
     if (not valid_link(flags['url'])):
