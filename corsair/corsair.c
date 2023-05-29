@@ -71,7 +71,7 @@ int main2(void)
 	return (0);
 }
 
-BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
+BIGNUM *gcd(const BIGNUM *modulo0, const BIGNUM *modulo1)
 {
 	BIGNUM *n0, *n1, *r, *aux;	
 	BN_CTX *ctx;
@@ -84,7 +84,6 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 	if(BN_is_zero(modulo1))
 		return (NULL);
 	n0 = BN_dup(modulo0);
-		printf("sdaf pointers: %p %p %p\n", r, n0, n1);
 	r = BN_dup(modulo1);
 	n1 = BN_dup(modulo1);
 	if (BN_cmp(n0, n1) < 0)
@@ -111,12 +110,10 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 			BN_free(n0);
 			BN_free(n1);
 			ERR_error_string(error, error_string);
-			printf("Error on gcd %d, %s\n", error, error_string);
+			printf("Error on gcd %lu, %s\n", error, error_string);
 			return (NULL);
 		}
-		printf("pointers: %p %p %p\n", r, n0, n1);
 		
-		BN_free(n0);
 		aux = n0;
 		n0 = n1;
 		n1 = r;
@@ -147,7 +144,105 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 	return (n0);
 }
 
+RSA	*get_rsa_from_int(int num)
+{
+	char	file[25];
+	char	index[11];
+	char	*i = &index[9];
+	RSA		*twk_rsa;
+	FILE	*fp;
+
+	index[10] = '\0';
+	index[9] = '0';
+	while (num > 0)
+	{
+		*i = num % 10 + '0';
+		num /= 10;
+		if(num)
+			i--;
+	}
+	strlcpy(file, "challenge_corsair/", 25);
+	strlcat(file, i, 25);
+	strlcat(file, ".pem", 25);
+	fp = fopen(file, "r");
+	if (!fp)
+	{	
+		printf("ERROR on opening fle: >%s<\n", file);
+		return (NULL);
+	}
+	twk_rsa= PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
+	fclose(fp);
+	return (twk_rsa);
+}
+
 int main(void)
+{
+	const BIGNUM	*modulus1, *modulus2;
+	BIGNUM			*ONE, *gcd_result;
+	RSA				*twk_rsa1, *twk_rsa2;
+	BN_CTX			*ctx;
+	FILE			*fp;
+	int				ok;
+	
+	ONE = BN_new();
+	printf("oppaaaa\n");
+	if (!BN_one(ONE))
+		return (0);
+	printf("oppa\n");
+	for (int i = 0; i < 100; i++)
+	{
+		printf("waka\n");
+		twk_rsa1 = get_rsa_from_int(1);
+		modulus1 = RSA_get0_n(twk_rsa1);
+		for (int j = i; j < 100; j++)
+		{
+			printf("%d, %d\n", i, j);
+			twk_rsa2 = get_rsa_from_int(2);
+			modulus2 = RSA_get0_n(twk_rsa2);
+			gcd_result = gcd(modulus1, (BIGNUM *)  modulus2);//not protected
+			if (BN_cmp(gcd_result, ONE) > 0)
+				BN_print_fp(stdout, gcd_result);
+			printf("freeing gcd_result\n");
+			BN_free(gcd_result);
+			printf("twk_rsa2\n");
+			RSA_free(twk_rsa2);
+			printf("sdaf\n");
+		}
+		RSA_free(twk_rsa1);
+	}
+	printf("Loaded RSAs\n");
+	/*
+	fp = fopen("challenge_corsair/1.pem", "r");
+	if (fp == NULL)
+		return (0);
+	PEM_read_RSA_PUBKEY(fp, &twk_rsa1, NULL, NULL);
+	fp = fopen("challenge_corsair/2.pem", "r");
+	if (fp == NULL)
+		return (0);
+	PEM_read_RSA_PUBKEY(fp, &twk_rsa2, NULL, NULL);
+	*/
+	printf("RSAs: %p, %p\n", twk_rsa1, twk_rsa2);
+	modulus1 = RSA_get0_n(twk_rsa1);
+	modulus2 = RSA_get0_n(twk_rsa2);
+
+	BN_print_fp(stdout, modulus1);
+	printf("\n\n");
+	BN_print_fp(stdout, modulus2);
+	printf("\n\n");
+
+	printf("freeing ONE\n");
+	BN_free(ONE);
+	printf("freeing twk_rsa1\n");
+	RSA_free(twk_rsa1);
+	printf("freeing twk_rsa2\n");
+	RSA_free(twk_rsa2);
+	printf("freeing twk_rsa2\n");
+	BN_CTX_free(ctx);
+
+
+}
+
+int main3(void)
 {
 	const BIGNUM	*e;
 	BIGNUM	*e1, *one, *e2, *two, *e3, *tree, *gcd_result;
@@ -260,6 +355,7 @@ int main(void)
 	BN_CTX_free(ctx);
 	fclose(fp);
 	printf("all ok\n");
+	return (0);
 }
 // TODO
 // gcd
