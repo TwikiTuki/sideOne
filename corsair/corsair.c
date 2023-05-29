@@ -1,5 +1,6 @@
 # include <openssl/rsa.h>
 # include <openssl/pem.h>
+# include <openssl/err.h>
 # include <stdio.h>
 # include <unistd.h>
 
@@ -33,7 +34,7 @@ int main2(void)
 	printf("Result: %p %p\n", twk_rsa, twk_rsa_result);
 	// impirmexi el modulus de la clau publica
 	n = RSA_get0_e(twk_rsa_result);
-	printf("sdaf\n");
+	printf("sdafff\n");
 	// imprimeix el exponent de la clau publica
 	e = RSA_get0_n(twk_rsa_result);
 	printf("fasd\n");
@@ -72,8 +73,10 @@ int main2(void)
 
 BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 {
-	BIGNUM *n0, *n1, *r;	
+	BIGNUM *n0, *n1, *r, *aux;	
 	BN_CTX *ctx;
+	unsigned long error;
+	char error_string[500];
 	int ok;
 	// TODO assegurarse de que n1 > n0
 	// TODO esta funcio nomes es comproba amb numeros en que el gcd == n0. es tindria que probar amb gcd < n0. Aquest problema es deu a que n1 = n0*a es dindira que fer un n0' = n0*b
@@ -81,38 +84,73 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 	if(BN_is_zero(modulo1))
 		return (NULL);
 	n0 = BN_dup(modulo0);
+		printf("sdaf pointers: %p %p %p\n", r, n0, n1);
 	r = BN_dup(modulo1);
 	n1 = BN_dup(modulo1);
-	while (! BN_is_zero(r))
+	if (BN_cmp(n0, n1) < 0)
+	{
+		aux = n0;
+		n0 = n1;
+		n1 = aux;
+	}
+		printf("gcd num1 = ");
+		BN_print_fp(stdout, n0);
+		printf("\n\n");
+
+		printf("gcd num2  = ");
+		BN_print_fp(stdout, n1);
+		printf("\n\n");
+
+	while (! BN_is_zero(n1))
 	{
 		ok = BN_mod(r, n0, n1, ctx);
 		if (!ok)
 		{
+			error = ERR_get_error();
 			BN_free(r);
 			BN_free(n0);
 			BN_free(n1);
+			ERR_error_string(error, error_string);
+			printf("Error on gcd %d, %s\n", error, error_string);
 			return (NULL);
-			printf("Errorn on gcd\n");
 		}
-		printf("mmiddel result = ");
-		BN_print_fp(stdout, r);
-		printf("\n\n");
+		printf("pointers: %p %p %p\n", r, n0, n1);
+		
 		BN_free(n0);
+		aux = n0;
 		n0 = n1;
 		n1 = r;
+		r = aux;
+	/*	
+		printf("mmiddel result = ");
+		BN_print_fp(stdout, r);
+		printf("\n");
+		printf("n0 = ");
+		BN_print_fp(stdout, n0);
+		printf("\n");
+		printf("n1 = ");
+		BN_print_fp(stdout, n1);
+		printf("\n");
+		printf("pointers: %p %p %p\n\n", r, n0, n1);
+		*/
+	
 	}
 	BN_CTX_free(ctx);
-	//BN_free(n1);
+	BN_free(n1);
 	/*
 	BN_free(r);
 	*/
+		printf("\nn0 = ");
+		BN_print_fp(stdout, n0);
+		printf("\n\n");
+		printf("pointers: %p %p %p\n", r, n0, n1);
 	return (n0);
 }
 
 int main(void)
 {
 	const BIGNUM	*e;
-	BIGNUM	*e2, *two, *e3, *tree, *gcd_result;
+	BIGNUM	*e1, *one, *e2, *two, *e3, *tree, *gcd_result;
 	RSA		*twk_rsa;
 	BN_CTX	*ctx;			
 	int		ok;
@@ -126,24 +164,49 @@ int main(void)
 		return (0);
 	}
 	ctx = BN_CTX_new();
-	ok = BN_dec2bn((BIGNUM **) &two, "5546");
+
+	// initialize one two tree
+	one = BN_new();
+	two = BN_new();
+	tree = BN_new();
+	printf("sdaf\n");
+
+	ok = BN_dec2bn( &one, "856656656656546");
+	if (!ok)
+		return (0);
+	printf("one = ");
+	BN_print_fp(stdout, one);
+	printf("\n");
+
+	ok = BN_dec2bn( &two, "45526254455645655549845");
+	if (!ok)
+		return (0);
 	printf("two = ");
 	BN_print_fp(stdout, two);
 	printf("\n");
-	ok = BN_dec2bn((BIGNUM **) &tree, "356");
+
+	ok = BN_dec2bn((BIGNUM **) &tree, "685262544556456555493454875653485");
+	if (!ok)
+		return (0);
+	printf("fasd\n");
 	printf("tree = ");
 	BN_print_fp(stdout, tree);
 	printf("\n");
+	
 	//twk_rsa= PEM_read_RSA_PUBKEY(fp, &twk_rsa, NULL, NULL);
 	twk_rsa= PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
 	// imprimeix el exponent de la clau publica
 	e = RSA_get0_n(twk_rsa);
 	printf("e = ");
 	BN_print_fp(stdout, e);
-	printf("\n\n");
+	printf("\nhello\n");
+	
+	// GENERATE NUMBERS FOR gcd
 	// generate e2
 	e2 = BN_new();
-	ok = BN_mul(e2, e, two, ctx); 
+	printf("ssssdaf\n");
+	ok = BN_mul(e2, one, two, ctx); 
+	printf("fasd\n");
 	if (ok)
 	{
 		printf("e2 = ");
@@ -154,7 +217,7 @@ int main(void)
 		printf("Could not multiply by 2\n");
 	// generate e3
 	e3 = BN_new();
-	ok = BN_mul(e3, e, tree, ctx); 
+	ok = BN_mul(e3, one, tree, ctx); 
 	if (ok)
 	{
 		printf("e3 = ");
@@ -166,8 +229,10 @@ int main(void)
 
 	// fa falta probar amb mes combinacions es tindira que crear un altre e3.
 	gcd_result = gcd(e2, e3);
+	printf("exit gcd %p\n", gcd_result);
 	if (!gcd_result)
 		return (0);
+	printf("survived gcd\n");
 //	gcd_result = gcd(e3, e2);
 	printf("gcd_result = ");
 	BN_print_fp(stdout, gcd_result);
@@ -175,10 +240,14 @@ int main(void)
 	printf("\n\n");
 	printf("freeing e\n");
 	//BN_free(e);
+	printf("freeing e1\n");
+	BN_free(e1);
 	printf("freeing e3\n");
 	BN_free(e2);
 	printf("freeing e3\n");
 	BN_free(e3);
+	printf("freeing one\n");
+	BN_free(one);
 	printf("freeing two\n");
 	BN_free(two);
 	printf("freeing tree\n");
