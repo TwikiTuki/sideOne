@@ -113,7 +113,6 @@ BIGNUM *gcd(const BIGNUM *modulo0, const BIGNUM *modulo1)
 			printf("Error on gcd %lu, %s\n", error, error_string);
 			return (NULL);
 		}
-		
 		aux = n0;
 		n0 = n1;
 		n1 = r;
@@ -134,8 +133,10 @@ BIGNUM *gcd(const BIGNUM *modulo0, const BIGNUM *modulo1)
 	}
 	BN_CTX_free(ctx);
 	BN_free(n1);
-	/*
+	printf("sdaf\n");
 	BN_free(r);
+	printf("fasd\n");
+	/*
 	*/
 		printf("\nn0 = ");
 		BN_print_fp(stdout, n0);
@@ -201,7 +202,11 @@ int main(void)
 			modulus2 = RSA_get0_n(twk_rsa2);
 			gcd_result = gcd(modulus1, (BIGNUM *)  modulus2);//not protected
 			if (BN_cmp(gcd_result, ONE) > 0)
+			{
+				printf("Coincidence on: %d, %d\t\t", i, j);
 				BN_print_fp(stdout, gcd_result);
+				printf("\n");
+			}
 			printf("freeing gcd_result\n");
 			BN_free(gcd_result);
 			printf("twk_rsa2\n");
@@ -232,12 +237,12 @@ int main(void)
 
 	printf("freeing ONE\n");
 	BN_free(ONE);
-	printf("freeing twk_rsa1\n");
-	RSA_free(twk_rsa1);
-	printf("freeing twk_rsa2\n");
-	RSA_free(twk_rsa2);
-	printf("freeing twk_rsa2\n");
-	BN_CTX_free(ctx);
+//	printf("freeing twk_rsa1\n");
+//	RSA_free(twk_rsa1);
+//	printf("freeing twk_rsa2\n");
+//	RSA_free(twk_rsa2);
+//	printf("freeing twk_rsa2\n");
+//	BN_CTX_free(ctx);
 
 
 }
