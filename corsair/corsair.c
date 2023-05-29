@@ -91,24 +91,25 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 			BN_free(r);
 			BN_free(n0);
 			BN_free(n1);
+			return (NULL);
 		}
-		printf("r = ");
+		printf("mmiddel result = ");
 		BN_print_fp(stdout, r);
 		printf("\n\n");
 		BN_free(n0);
 		n0 = n1;
 		n1 = r;
 	}
-	BN_free(r);
-	BN_free(n1);
-	BN_CTX_free(ctx);
+	//BN_free(r);
+	//BN_CTX_free(ctx);
+	//BN_free(n1);
 	return (n0);
 }
 
 int main(void)
 {
 	const BIGNUM	*e;
-	BIGNUM	*e2, *two, *gcd_result;
+	BIGNUM	*e2, *two, *e3, *tree, *gcd_result;
 	RSA		*twk_rsa;
 	BN_CTX	*ctx;			
 	int		ok;
@@ -122,16 +123,22 @@ int main(void)
 		return (0);
 	}
 	ctx = BN_CTX_new();
-	ok = BN_dec2bn((BIGNUM **) &two, "2");
+	ok = BN_dec2bn((BIGNUM **) &two, "5546");
 	printf("two = ");
 	BN_print_fp(stdout, two);
 	printf("\n");
-	twk_rsa= PEM_read_RSA_PUBKEY(fp, &twk_rsa, NULL, NULL);
+	ok = BN_dec2bn((BIGNUM **) &tree, "356");
+	printf("tree = ");
+	BN_print_fp(stdout, tree);
+	printf("\n");
+	//twk_rsa= PEM_read_RSA_PUBKEY(fp, &twk_rsa, NULL, NULL);
+	twk_rsa= PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
 	// imprimeix el exponent de la clau publica
 	e = RSA_get0_n(twk_rsa);
 	printf("e = ");
 	BN_print_fp(stdout, e);
 	printf("\n\n");
+	// generate e2
 	e2 = BN_new();
 	ok = BN_mul(e2, e, two, ctx); 
 	if (ok)
@@ -142,9 +149,23 @@ int main(void)
 	}
 	else
 		printf("Could not multiply by 2\n");
+	// generate e3
+	e3 = BN_new();
+	ok = BN_mul(e3, e, tree, ctx); 
+	if (ok)
+	{
+		printf("e3 = ");
+		BN_print_fp(stdout, e3);
+		printf("\n\n");
+	}
+	else
+		printf("Could not multiply by 3\n");
 
 	// fa falta probar amb mes combinacions es tindira que crear un altre e3.
-	gcd_result = gcd(e2, (BIGNUM *) e);
+	gcd_result = gcd(e2, e3);
+	if (!gcd_result)
+		return (0);
+//	gcd_result = gcd(e3, e2);
 	printf("gcd_result = ");
 	BN_print_fp(stdout, gcd_result);
 
