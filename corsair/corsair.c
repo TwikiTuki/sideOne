@@ -91,6 +91,7 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 			BN_free(r);
 			BN_free(n0);
 			BN_free(n1);
+			printf("Errorn on gcd\n");
 		}
 		printf("r = ");
 		BN_print_fp(stdout, r);
@@ -99,9 +100,11 @@ BIGNUM *gcd(BIGNUM *modulo0, BIGNUM *modulo1)
 		n0 = n1;
 		n1 = r;
 	}
-	BN_free(r);
-	BN_free(n1);
 	BN_CTX_free(ctx);
+	BN_free(n1);
+	/*
+	BN_free(r);
+	*/
 	return (n0);
 }
 
@@ -157,8 +160,12 @@ int main(void)
 	BN_free(two);
 	printf("freeing twk_rsa__result\n");
 	RSA_free(twk_rsa); // will give error
+	printf("freeing gcd_result\n");
+	BN_free(gcd_result);
+	printf("freeing ctx\n");
 	BN_CTX_free(ctx);
 	fclose(fp);
+	printf("all ok\n");
 }
 // TODO
 // gcd
