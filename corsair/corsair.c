@@ -92,13 +92,6 @@ BIGNUM *gcd(const BIGNUM *modulo0, const BIGNUM *modulo1)
 		n0 = n1;
 		n1 = aux;
 	}
-		printf("gcd num1 = ");
-		BN_print_fp(stdout, n0);
-		printf("\n\n");
-
-		printf("gcd num2  = ");
-		BN_print_fp(stdout, n1);
-		printf("\n\n");
 
 	while (! BN_is_zero(n1))
 	{
@@ -133,15 +126,9 @@ BIGNUM *gcd(const BIGNUM *modulo0, const BIGNUM *modulo1)
 	}
 	BN_CTX_free(ctx);
 	BN_free(n1);
-	printf("sdaf\n");
 	BN_free(r);
-	printf("fasd\n");
 	/*
 	*/
-		printf("\nn0 = ");
-		BN_print_fp(stdout, n0);
-		printf("\n\n");
-		printf("pointers: %p %p %p\n", r, n0, n1);
 	return (n0);
 }
 
@@ -178,6 +165,12 @@ RSA	*get_rsa_from_int(int num)
 
 int main(void)
 {
+BIGNUM			*mod1, *mod2, *two;
+mod1 = BN_new();
+mod2 = BN_new();
+two = BN_new();
+BN_CTX			*ctx2;
+BN_dec2bn(&two, "1");
 	const BIGNUM	*modulus1, *modulus2;
 	BIGNUM			*ONE, *gcd_result;
 	RSA				*twk_rsa1, *twk_rsa2;
@@ -185,37 +178,45 @@ int main(void)
 	FILE			*fp;
 	int				ok;
 	
+	ctx = BN_CTX_new();
 	ONE = BN_new();
 	printf("oppaaaa\n");
 	if (!BN_one(ONE))
 		return (0);
 	printf("oppa\n");
-	for (int i = 0; i < 100; i++)
+	for (int i = 1; i < 100; i++)
 	{
-		printf("waka\n");
-		twk_rsa1 = get_rsa_from_int(1);
-		modulus1 = RSA_get0_n(twk_rsa1);
-		for (int j = i; j < 100; j++)
+		twk_rsa1 = get_rsa_from_int(i); //unprotected
+		modulus1 = RSA_get0_n(twk_rsa1); //unprotected
+		
+		for (int j = i + 1; j < 100; j++)
 		{
-			printf("%d, %d\n", i, j);
-			twk_rsa2 = get_rsa_from_int(2);
-			modulus2 = RSA_get0_n(twk_rsa2);
-			gcd_result = gcd(modulus1, (BIGNUM *)  modulus2);//not protected
+			printf("%d, %d, gcd_result: ", i, j);
+			twk_rsa2 = get_rsa_from_int(j); //unprotected
+			modulus2 = RSA_get0_n(twk_rsa2); //unprotected
+		printf("sdaf\n");
+		BN_mul(mod1, modulus1, two, ctx);
+		printf("fasd\n");
+		BN_mul(mod2, modulus2, two, ctx);
+		BN_print_fp(stdout, mod1);
+		printf("\n\n");
+		BN_print_fp(stdout, mod2);
+		printf("\n");
+		gcd_result = gcd(mod1, mod2);//not protected
+//			gcd_result = gcd(modulus1, modulus2);//not protected TODO uncomment :)
+			BN_print_fp(stdout, gcd_result);
+			printf("\n");
 			if (BN_cmp(gcd_result, ONE) > 0)
 			{
 				printf("Coincidence on: %d, %d\t\t", i, j);
 				BN_print_fp(stdout, gcd_result);
 				printf("\n");
 			}
-			printf("freeing gcd_result\n");
 			BN_free(gcd_result);
-			printf("twk_rsa2\n");
 			RSA_free(twk_rsa2);
-			printf("sdaf\n");
 		}
 		RSA_free(twk_rsa1);
 	}
-	printf("Loaded RSAs\n");
 	/*
 	fp = fopen("challenge_corsair/1.pem", "r");
 	if (fp == NULL)
@@ -226,15 +227,11 @@ int main(void)
 		return (0);
 	PEM_read_RSA_PUBKEY(fp, &twk_rsa2, NULL, NULL);
 	*/
-	printf("RSAs: %p, %p\n", twk_rsa1, twk_rsa2);
 	modulus1 = RSA_get0_n(twk_rsa1);
 	modulus2 = RSA_get0_n(twk_rsa2);
 
-	BN_print_fp(stdout, modulus1);
-	printf("\n\n");
-	BN_print_fp(stdout, modulus2);
-	printf("\n\n");
 
+	BN_CTX_free(ctx); // not shure about that one
 	printf("freeing ONE\n");
 	BN_free(ONE);
 //	printf("freeing twk_rsa1\n");
@@ -243,8 +240,6 @@ int main(void)
 //	RSA_free(twk_rsa2);
 //	printf("freeing twk_rsa2\n");
 //	BN_CTX_free(ctx);
-
-
 }
 
 int main3(void)
@@ -269,8 +264,6 @@ int main3(void)
 	one = BN_new();
 	two = BN_new();
 	tree = BN_new();
-	printf("sdaf\n");
-
 	ok = BN_dec2bn( &one, "856656656656546");
 	if (!ok)
 		return (0);

