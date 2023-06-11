@@ -5,6 +5,9 @@
 # include <unistd.h>
 
 
+int pirate_private(RSA *twk_rsa, BIGNUM *gcd);
+int decrypt(RSA *twk_rsa, int file_num);
+
 int main2(void)
 {
 	RSA				*twk_rsa;			//
@@ -121,24 +124,20 @@ BIGNUM *gcd(const BIGNUM *modulo0, const BIGNUM *modulo1)
 		BN_print_fp(stdout, n1);
 		printf("\n");
 		printf("pointers: %p %p %p\n\n", r, n0, n1);
-		*/
-	
+	*/
 	}
 	BN_CTX_free(ctx);
 	BN_free(n1);
 	BN_free(r);
-	/*
-	*/
 	return (n0);
 }
 
-RSA	*get_rsa_from_int(int num)
+FILE *get_file_pointer(char* extension, int num)
 {
 	char	file[25];
 	char	index[11];
 	char	*i = &index[9];
-	RSA		*twk_rsa;
-	FILE	*fp;
+	FILE	*fp_result;
 
 	index[10] = '\0';
 	index[9] = '0';
@@ -151,32 +150,38 @@ RSA	*get_rsa_from_int(int num)
 	}
 	strlcpy(file, "challenge_corsair/", 25);
 	strlcat(file, i, 25);
-	strlcat(file, ".pem", 25);
-	fp = fopen(file, "r");
+	strlcat(file, extension, 25);
+	printf("file: >>%s<<\n", file);
+	fp_result = fopen(file, "r");
+	printf("%p\n", fp_result);
+	return (fp_result);
+}
+
+RSA	*get_rsa_from_int(int num)
+{
+	RSA		*twk_rsa;
+	FILE	*fp;
+
+	fp = get_file_pointer(".pem", num);
 	if (!fp)
 	{	
-		printf("ERROR on opening fle: >%s<\n", file);
+		printf("ERROR on opening fle key: %d\n", num);
 		return (NULL);
 	}
+	printf("sssdaf\n");
 	twk_rsa= PEM_read_RSA_PUBKEY(fp, NULL, NULL, NULL);
+	printf("fasddd\n");
 	fclose(fp);
+	printf("wak\n");
 	return (twk_rsa);
 }
 
 int main(void)
 {
-BIGNUM			*mod1, *mod2, *two;
-mod1 = BN_new();
-mod2 = BN_new();
-two = BN_new();
-BN_CTX			*ctx2;
-BN_dec2bn(&two, "1");
 	const BIGNUM	*modulus1, *modulus2;
 	BIGNUM			*ONE, *gcd_result;
 	RSA				*twk_rsa1, *twk_rsa2;
 	BN_CTX			*ctx;
-	FILE			*fp;
-	int				ok;
 	
 	ctx = BN_CTX_new();
 	ONE = BN_new();
@@ -191,61 +196,116 @@ BN_dec2bn(&two, "1");
 		
 		for (int j = i + 1; j < 100; j++)
 		{
+			printf("looping j\n");
 			printf("%d, %d, gcd_result: ", i, j);
 			twk_rsa2 = get_rsa_from_int(j); //unprotected
+			printf("sdaaaaf out\n");
 			modulus2 = RSA_get0_n(twk_rsa2); //unprotected
-		printf("sdaf\n");
-		BN_mul(mod1, modulus1, two, ctx);
-		printf("fasd\n");
-		BN_mul(mod2, modulus2, two, ctx);
-		BN_print_fp(stdout, mod1);
-		printf("\n\n");
-		BN_print_fp(stdout, mod2);
-		printf("\n");
-		gcd_result = gcd(mod1, mod2);//not protected
-//			gcd_result = gcd(modulus1, modulus2);//not protected TODO uncomment :)
+			printf("fasd out\n");
+			gcd_result = gcd(modulus1, modulus2);//not protected TODO uncomment :)
+			printf("kkkkkkkkkk out\n");
 			BN_print_fp(stdout, gcd_result);
 			printf("\n");
 			if (BN_cmp(gcd_result, ONE) > 0)
 			{
 				printf("Coincidence on: %d, %d\t\t", i, j);
 				BN_print_fp(stdout, gcd_result);
+				printf("\nsdaf out\n");
 				printf("\n");
+				printf("waka out\n");
+				pirate_private(twk_rsa1, gcd_result);
+				printf("\nfasd out\n");
+				decrypt(twk_rsa1, i);
+				//pirate_private(twk_rsa2, gcd_result);
+				// TODO decrypt(file_2, twk_rsa2)
+				//decrypt(twk_rsa2, j);
 			}
-			BN_free(gcd_result);
-			RSA_free(twk_rsa2);
+			printf("kokou out\n");
+			//BN_free(gcd_result);
+			printf("waka  out\n");
+			//RSA_free(twk_rsa2);
+			printf("kikirki  out\n");
 		}
-		RSA_free(twk_rsa1);
+		// RSA_free(twk_rsa1);
 	}
-	/*
-	fp = fopen("challenge_corsair/1.pem", "r");
-	if (fp == NULL)
-		return (0);
-	PEM_read_RSA_PUBKEY(fp, &twk_rsa1, NULL, NULL);
-	fp = fopen("challenge_corsair/2.pem", "r");
-	if (fp == NULL)
-		return (0);
-	PEM_read_RSA_PUBKEY(fp, &twk_rsa2, NULL, NULL);
-	*/
 	modulus1 = RSA_get0_n(twk_rsa1);
 	modulus2 = RSA_get0_n(twk_rsa2);
-
-
+	
 	BN_CTX_free(ctx); // not shure about that one
 	printf("freeing ONE\n");
 	BN_free(ONE);
-//	printf("freeing twk_rsa1\n");
-//	RSA_free(twk_rsa1);
-//	printf("freeing twk_rsa2\n");
-//	RSA_free(twk_rsa2);
-//	printf("freeing twk_rsa2\n");
-//	BN_CTX_free(ctx);
+}
+
+int pirate_private(RSA *twk_rsa, BIGNUM *gcd)
+{
+	BIGNUM	*d;
+	BIGNUM	*p;
+	//BIGNUM	*n;
+	//BIGNUM	*e;
+	BIGNUM	*aux;
+	BIGNUM	*totient;
+	BIGNUM	*rem;
+	BIGNUM	*ZERO;
+	BN_CTX	*ctx;
+	
+	ctx = BN_CTX_new();
+	d = BN_new();
+	p = BN_new();
+	aux = BN_new();
+	totient = BN_new(); rem = BN_new();
+	ZERO = BN_new();
+	BN_zero(ZERO); 												// Must protect
+
+	rem = BN_new();
+	BN_div(p,rem , RSA_get0_n(twk_rsa), gcd, ctx); 				// Must checkk for rem 0 Must protect 
+	if (BN_cmp(rem, ZERO) != 0)
+		printf("Something went wrong the remainder should be zero");
+	BN_sub(totient, gcd, BN_value_one());						// Must protect
+	BN_sub(aux, p, BN_value_one());								// Must protect
+	printf("sdaf\n");
+	BN_mul(totient, totient, aux, ctx);							// Must protect
+	printf("fasd\n");
+	BN_mod_inverse(d, totient, RSA_get0_e(twk_rsa), ctx);		// Must protect
+	printf("kokou\n");
+
+	//RSA_get0_n(twk_rsa);
+	//RSA_get0_e(twk_rsa);
+
+	RSA_set0_key(twk_rsa, NULL, NULL, d);	//!! Si esta ficant el punter sense ficar crear cap copia pot ser una liada com una casa ja que els punters es tindrien que lliverar fora 
+
+	BN_CTX_free(ctx);
+	BN_free(aux);
+	BN_free(totient);
+	printf("kokkkkou\n");
+	//BN_freee(d); Dont feee it it is passed to RSA_set0_key which takes the control
+	//BN_free(p);
+	return (1);
+}
+
+int decrypt(RSA *twk_rsa, int file_num)
+{
+	FILE *secret_file;
+	char encrypted_text[RSA_size(twk_rsa) + 1];
+	char decrypted_text[RSA_size(twk_rsa) + 1];
+
+	secret_file = get_file_pointer(".bin", file_num);	
+	if (!secret_file)
+	{
+		printf("error when loading file\n");
+		return (0);
+	}
+	fgets(encrypted_text, RSA_size(twk_rsa) + 1, secret_file); // Needs protection
+	RSA_public_encrypt(RSA_size(twk_rsa), (const unsigned char*) "sdaf", (unsigned char *) encrypted_text, twk_rsa, RSA_NO_PADDING);
+	RSA_private_decrypt(RSA_size(twk_rsa), (const unsigned char*) encrypted_text, (unsigned char *) decrypted_text, twk_rsa, RSA_NO_PADDING);
+	printf("The text is: >>>%s<<<", decrypted_text);
+	fclose(secret_file);
+	return (1);
 }
 
 int main3(void)
 {
 	const BIGNUM	*e;
-	BIGNUM	*e1, *one, *e2, *two, *e3, *tree, *gcd_result;
+	BIGNUM	*one, *e2, *two, *e3, *tree, *gcd_result;
 	RSA		*twk_rsa;
 	BN_CTX	*ctx;			
 	int		ok;
@@ -334,7 +394,7 @@ int main3(void)
 	printf("freeing e\n");
 	//BN_free(e);
 	printf("freeing e1\n");
-	BN_free(e1);
+	//BN_free(e1);
 	printf("freeing e3\n");
 	BN_free(e2);
 	printf("freeing e3\n");
